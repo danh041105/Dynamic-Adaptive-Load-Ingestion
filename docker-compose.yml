@@ -1,0 +1,154 @@
+version: "3.8"
+x-airflow-common: &airflow-common
+  build:
+    context: .
+    dockerfile: ./dockerfiles/airflow.dockerfile
+  environment:
+    - AIRFLOW__CORE__EXECUTOR=LocalExecutor
+    - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://airflow:airflow@postgres/airflow
+    - AIRFLOW__CORE__LOAD_EXAMPLES=False
+    - PYSPARK_PYTHON=/usr/local/bin/python
+    - PYSPARK_DRIVER_PYTHON=/usr/local/bin/python
+  volumes:
+    - ./dags:/opt/airflow/dags
+    - ./src:/opt/src
+  depends_on:
+    postgres:
+      condition: service_healthy
+  networks:
+    - viettel-net
+services:
+  # 1. Airflow
+  # 1.1. DATABASE CHO AIRFLOW (Chỉ dùng riêng cho backend của Airflow)
+  postgres:
+    image: postgres:13
+    container_name: airflow-postgres
+    environment:
+      - POSTGRES_USER=airflow
+      - POSTGRES_PASSWORD=airflow
+      - POSTGRES_DB=airflow
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./docker-data/postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD", "pg_isready", "-U", "airflow" ]
+      interval: 5s
+      retries: 5
+    networks:
+      - viettel-net
+
+  # 1.2. KHỞI TẠO AIRFLOW
+  airflow-init:
+    <<: *airflow-common
+    container_name: airflow-init
+    command: >
+      bash -c " airflow db migrate && (airflow users create --username admin --firstname Duy --lastname Anh --role Admin --email duyanhn519@gmail.com --password admin || true) "
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  # 1.3. AIRFLOW WEBSERVER
+  airflow-webserver:
+    <<: *airflow-common
+    container_name: airflow-webserver
+    command: webserver
+    ports:
+      - "8080:8080"
+    healthcheck:
+      test: [ "CMD", "curl", "--fail", "http://localhost:8080/health" ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    restart: always
+    depends_on:
+      airflow-init:
+        condition: service_completed_successfully
+
+  # 1.4. AIRFLOW SCHEDULER
+  airflow-scheduler:
+    <<: *airflow-common
+    container_name: airflow-scheduler
+    command: scheduler
+    healthcheck:
+      test: [ "CMD-SHELL", 'airflow jobs check --job-type SchedulerJob --hostname "$${HOSTNAME}"' ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    restart: always
+    depends_on:
+      airflow-init:
+        condition: service_completed_successfully
+
+  # 2. Apache Nifi
+  nifi:
+    image: apache/nifi:2.0.0
+    container_name: nifi
+    ports:
+      - "8443:8443"
+    environment:
+      - SINGLE_USER_CREDENTIALS_USERNAME=admin
+      - SINGLE_USER_CREDENTIALS_PASSWORD=adminpassword123
+      - TZ=Asia/Ho_Chi_Minh
+      - NIFI_JVM_EXTRA_ARGS=-Duser.timezone=Asia/Ho_Chi_Minh
+    volumes:
+      - ./docker-data/nifi_state:/opt/nifi/nifi-current/state
+      - ./docker-data/nifi_database_repository:/opt/nifi/nifi-current/database_repository
+      - ./docker-data/nifi_flowfile_repository:/opt/nifi/nifi-current/flowfile_repository
+      - ./docker-data/nifi_content_repository:/opt/nifi/nifi-current/content_repository
+      - ./docker-data/nifi_provenance_repository:/opt/nifi/nifi-current/provenance_repository
+      - ./docker-data/nifi_logs:/opt/nifi/nifi-current/logs
+    networks:
+      - viettel-net
+
+  # 3. HDFS
+  namenode:
+    image: bde2020/hadoop-namenode:2.0.0-hadoop3.2.1-java8
+    container_name: namenode
+    ports:
+      - "9870:9870"
+      - "9000:9000"
+    volumes:
+      - ./docker-data/hadoop-namenode:/hadoop/dfs/name
+    environment:
+      - CLUSTER_NAME=viettel_cluster
+      - CORE_CONF_fs_defaultFS=hdfs://namenode:9000
+      - CORE_CONF_hadoop_http_staticuser_user=root
+      - HDFS_CONF_dfs_webhdfs_enabled=true
+      - HDFS_CONF_dfs_permissions_enabled=false
+      - HDFS_CONF_dfs_namenode_datanode_registration_ip___hostname___check=false
+    networks:
+      - viettel-net
+  datanode:
+    image: bde2020/hadoop-datanode:2.0.0-hadoop3.2.1-java8
+    container_name: datanode
+    depends_on:
+      - namenode
+    volumes:
+      - ./docker-data/hadoop-datanode:/hadoop/dfs/data
+    environment:
+      - SERVICE_PRECONDITION=namenode:9870
+      - CORE_CONF_fs_defaultFS=hdfs://namenode:9000
+      - CORE_CONF_hadoop_http_staticuser_user=root
+      - HDFS_CONF_dfs_webhdfs_enabled=true
+      - HDFS_CONF_dfs_permissions_enabled=false
+      - HDFS_CONF_dfs_namenode_datanode_registration_ip___hostname___check=false
+    networks:
+      - viettel-net
+  sftp:
+    image: atmoz/sftp:latest
+    container_name: sftp-server
+    ports:
+      - "2222:22"
+    volumes:
+      - ./cell_trace_server:/home/nifi/cell_trace_server
+    command: nifi:nifi:1001
+    restart: unless-stopped
+    networks:
+      - viettel-net
+networks:
+  viettel-net:
+    name: viettel-net
+    driver: bridge

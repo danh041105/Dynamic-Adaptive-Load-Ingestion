@@ -1,0 +1,4 @@
+nifi-custom-processors-bundle/
+venv/
+**/__pycache__/
+docker-data/
