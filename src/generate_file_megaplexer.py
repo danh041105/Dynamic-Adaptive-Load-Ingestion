@@ -4,10 +4,9 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-
-BASE_DIR = Path(__file__).parent.parent / "cell_trace_server"
-MEGAPLEXERS = [f"mgpl{i:02d}" for i in range(1, 7)]
-TOTAL_FILES = 280
+base_dir = Path(__file__).parent.parent / "cell_trace_server"
+megaplexers_list = [f"mgpl{i:02d}" for i in range(1, 7)]
+total_file = 280
 HIGH_TRAFFIC_MEGAPLEXERS = 3
 HIGH_TRAFFIC_PAYLOAD_MB = 5
 NORMAL_TRAFFIC_PAYLOAD_MB = 2
@@ -64,7 +63,7 @@ def generate_megaplexer_files(
             f"{file_time.strftime('%y%m%d_%H%M%S')}.lcbin"
         )
         filepath = (
-            BASE_DIR / "nokia" / megaplexer_name / date_part / minute_part / filename
+            base_dir / "nokia" / megaplexer_name / date_part / minute_part / filename
         )
         tasks.append((filepath, payload))
 
@@ -79,11 +78,11 @@ def generate_megaplexer_data() -> None:
     high_traffic_payload = os.urandom(HIGH_TRAFFIC_PAYLOAD_MB * 1024 * 1024)
     normal_traffic_payload = os.urandom(NORMAL_TRAFFIC_PAYLOAD_MB * 1024 * 1024)
     allocations = distribute_randomly(
-        MEGAPLEXERS, TOTAL_FILES, HIGH_TRAFFIC_MEGAPLEXERS
+        megaplexers_list, total_file, HIGH_TRAFFIC_MEGAPLEXERS
     )
 
     all_tasks = []
-    for index, megaplexer in enumerate(MEGAPLEXERS):
+    for index, megaplexer in enumerate(megaplexers_list ):
         payload = (
             high_traffic_payload
             if index < HIGH_TRAFFIC_MEGAPLEXERS
@@ -95,12 +94,11 @@ def generate_megaplexer_data() -> None:
             )
         )
 
-    print(f"[*] Phan bo file: {dict(zip(MEGAPLEXERS, allocations))}")
+    print(f"[*] Phan bo file: {dict(zip(megaplexers_list, allocations))}")
     print(f"[*] Dang ghi {len(all_tasks)} file .lcbin cho 6 megaplexer...")
     with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
         list(executor.map(write_file, all_tasks))
     print("[+] Hoan tat!")
-
 
 if __name__ == "__main__":
     generate_megaplexer_data()

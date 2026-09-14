@@ -1,0 +1,10 @@
+Traceback (most recent call last):
+  File "D:\hoc tap\VDT 2026\G\u01102\project\src\generate_file_enm.py", line 124, in <module>
+    generate_enm_data() 
+    ^^^^^^^^^^^^^^^^^^^
+  File "D:\hoc tap\VDT 2026\G\u01102\project\src\generate_file_enm.py", line 85, in generate_enm_data
+    print("[*] \u0110ang chu\u1ea9n b\u1ecb payload...")
+  File "E:\Python\Python312\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u0110' in position 4: character maps to <undefined>

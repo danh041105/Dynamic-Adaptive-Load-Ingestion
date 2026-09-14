@@ -6,12 +6,16 @@ x-airflow-common: &airflow-common
   environment:
     - AIRFLOW__CORE__EXECUTOR=LocalExecutor
     - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://airflow:airflow@postgres/airflow
+    - AIRFLOW__CORE__DEFAULT_TIMEZONE="Asia/Ho_Chi_Minh"
+    - AIRFLOW__WEBSERVER__DEFAULT_UI_TIMEZONE="Asia/Ho_Chi_Minh"
+    - AIRFLOW__WEBSERVER__SECRET_KEY=airflow-secret-key-vdt-gd2-2026
     - AIRFLOW__CORE__LOAD_EXAMPLES=False
     - PYSPARK_PYTHON=/usr/local/bin/python
     - PYSPARK_DRIVER_PYTHON=/usr/local/bin/python
+    - PYTHONPATH=/opt/airflow/project
   volumes:
     - ./dags:/opt/airflow/dags
-    - ./src:/opt/src
+    - ./:/opt/airflow/project
   depends_on:
     postgres:
       condition: service_healthy
@@ -21,7 +25,7 @@ services:
   # 1. Airflow
   # 1.1. DATABASE CHO AIRFLOW (Chỉ dùng riêng cho backend của Airflow)
   postgres:
-    image: postgres:13
+    image: postgres:16
     container_name: airflow-postgres
     environment:
       - POSTGRES_USER=airflow
@@ -93,7 +97,10 @@ services:
       - SINGLE_USER_CREDENTIALS_PASSWORD=adminpassword123
       - TZ=Asia/Ho_Chi_Minh
       - NIFI_JVM_EXTRA_ARGS=-Duser.timezone=Asia/Ho_Chi_Minh
+      - NIFI_JVM_HEAP_INIT=8g
+      - NIFI_JVM_HEAP_MAX=12g
     volumes:
+      - ./docker-data/nifi_download:/data/celltrace_download
       - ./docker-data/nifi_state:/opt/nifi/nifi-current/state
       - ./docker-data/nifi_database_repository:/opt/nifi/nifi-current/database_repository
       - ./docker-data/nifi_flowfile_repository:/opt/nifi/nifi-current/flowfile_repository
@@ -145,6 +152,28 @@ services:
     volumes:
       - ./cell_trace_server:/home/nifi/cell_trace_server
     command: nifi:nifi:1001
+    restart: unless-stopped
+    networks:
+      - viettel-net
+
+# TimescaleDB
+  timescaledb:
+    image: timescale/timescaledb:2.27.1-pg16
+    container_name: timescaledb
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: vtnet
+      TZ: Asia/Ho_Chi_Minh
+    ports:
+    - "5433:5432"
+    volumes:
+    - ./docker-data/timescaledb:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     restart: unless-stopped
     networks:
       - viettel-net
