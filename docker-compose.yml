@@ -156,28 +156,51 @@ services:
     networks:
       - viettel-net
 
-# TimescaleDB
-  timescaledb:
-    image: timescale/timescaledb:2.27.1-pg16
-    container_name: timescaledb
+# # TimescaleDB
+#   timescaledb:
+#     image: timescale/timescaledb:2.27.1-pg16
+#     container_name: timescaledb
+#     environment:
+#       POSTGRES_USER: admin
+#       POSTGRES_PASSWORD: password
+#       POSTGRES_DB: vtnet
+#       TZ: Asia/Ho_Chi_Minh
+#     ports:
+#     - "5433:5432"
+#     volumes:
+#     - ./docker-data/timescaledb:/var/lib/postgresql/data
+#     healthcheck:
+#       test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+#       interval: 10s
+#       timeout: 5s
+#       retries: 5
+#     restart: unless-stopped
+#     networks:
+#       - viettel-net
+
+# SingleStore
+  singlestore:
+    image: ghcr.io/singlestore-labs/singlestoredb-dev:0.2.84
+    container_name: singlestore
     environment:
-      POSTGRES_USER: admin
-      POSTGRES_PASSWORD: password
-      POSTGRES_DB: vtnet
+      ROOT_PASSWORD: admin
+      ENABLE_STUDIO: "1"
       TZ: Asia/Ho_Chi_Minh
     ports:
-    - "5433:5432"
+      - "3306:3306"
+      - "8081:8080"
+      - "9001:9000"
     volumes:
-    - ./docker-data/timescaledb:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+      - singlestore-data:/data
+    cpus: 8.0
     restart: unless-stopped
     networks:
       - viettel-net
+
 networks:
   viettel-net:
     name: viettel-net
     driver: bridge
+
+volumes:
+  singlestore-data:

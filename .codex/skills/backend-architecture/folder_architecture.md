@@ -15,3 +15,10 @@ Rules:
 - Tái sử dụng các services, schemas và models hiện có trước khi tạo mới.
 - Giữ cho mỗi tính năng được tách biệt và tuân theo phong cách đặt tên có sẵn của dự án.
 -Tuyệt đối không chỉnh sửa thư mục __pycache__.
+
+Quy tắc dependency
+constants ← models
+constants ← schemas
+models + schemas ← services
+services ← controllers
+controllers ← routes

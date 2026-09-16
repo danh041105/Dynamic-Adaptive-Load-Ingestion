@@ -6,3 +6,5 @@ psycopg2==2.9.13
 bcrypt==4.0.1
 passlib[bcrypt]==1.7.4 
 python-jose[cryptography]==3.5.0
+python-dotenv>=1.0
+sqlalchemy-singlestoredb==1.2.1

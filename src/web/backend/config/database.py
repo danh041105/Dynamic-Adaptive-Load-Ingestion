@@ -1,17 +1,23 @@
 import os
 from dotenv import load_dotenv
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
+from sqlalchemy.engine import URL
 from sqlalchemy.orm import sessionmaker, declarative_base
-from sqlalchemy import text
-load_dotenv()
-database_url = f"postgresql://{os.getenv('postgres_user')}:{os.getenv('postgres_password')}@{os.getenv('postgres_host')}:{os.getenv('postgres_port')}/{os.getenv('postgres_db')}"
 
-engine = create_engine(database_url)
-SessionLocal = sessionmaker(
-    autocommit=False,
-    autoflush=False,
-    bind=engine
+load_dotenv()
+
+database_url = (
+    f"singlestoredb://"
+    f"{os.getenv('singlestore_user')}:"
+    f"{os.getenv('singlestore_password')}@"
+    f"{os.getenv('singlestore_host')}:"
+    f"{os.getenv('singlestore_port')}/"
+    f"{os.getenv('singlestore_db')}"
 )
+
+# kiểm tra xem kết nối đến db được không trước khi sử dụng
+engine = create_engine(database_url, pool_pre_ping=True) 
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 Base = declarative_base()
 
@@ -27,6 +33,6 @@ if __name__ == "__main__":
     try:
         with engine.connect() as connection:
             result = connection.execute(text("SELECT 1"))
-            print("Database connection successful:", result.scalar())
+            print("SingleStore connection successful:", result.scalar())
     except Exception as e:
-        print("Database connection failed:", str(e))
+        print("SingleStore connection failed:", str(e))

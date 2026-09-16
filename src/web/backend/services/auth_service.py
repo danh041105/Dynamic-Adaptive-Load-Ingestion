@@ -3,9 +3,10 @@ from fastapi import HTTPException, status
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 from sqlalchemy.orm import Session
-from backend.config.nifi_config import get_secret_key, get_algorithm, get_access_token_expire_minutes
+from backend.config.auth_config import AuthConfig
 from backend.models.user import User
-from backend.schemas.auth_schemas import UserRole, TokenResponse
+from backend.schemas.auth_schemas import TokenResponse
+from backend.constants.enums import UserRole
 
 pwd_context= CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -46,10 +47,10 @@ class AuthService:
         if expires_delta:
             expire = datetime.now(timezone.utc) + expires_delta
         else:
-            expire = (datetime.now(timezone.utc) + timedelta(minutes=get_access_token_expire_minutes()))
+            expire = (datetime.now(timezone.utc) + timedelta(minutes=AuthConfig.get_access_token_expire_minutes()))
         
         to_encode.update({"exp":expire})
-        encoded_jwt = jwt.encode(to_encode, get_secret_key(), algorithm=get_algorithm())
+        encoded_jwt = jwt.encode(to_encode, AuthConfig.get_secret_key(), algorithm=AuthConfig.get_algorithm())
 
         return encoded_jwt
 
@@ -57,7 +58,7 @@ class AuthService:
     @staticmethod
     def decode_access_token(token: str) -> dict | None: 
         try:
-            payload = jwt.decode(token, get_secret_key(), algorithms=[get_algorithm()])
+            payload = jwt.decode(token, AuthConfig.get_secret_key(), algorithms=[AuthConfig.get_algorithm()])
             return payload
         except JWTError:
             return None

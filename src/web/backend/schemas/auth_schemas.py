@@ -1,10 +1,6 @@
 import re
 from pydantic import BaseModel, Field, field_validator
-from enum import Enum
-
-class UserRole(str, Enum):
-    DATA_ENGINEER = "Data Engineer"
-    RADIO_FREQUENCY_ENGINEER = "Radio Frequency Engineer"
+from backend.constants.enums import UserRole
 
 class SignUpRequest(BaseModel):
     username: str = Field(
@@ -48,13 +44,29 @@ class SignUpResponse(BaseModel):
     username: str
     role: UserRole
     model_config = {
-        "from_attributes": True
+        "from_attributes": True,
+        "populate_by_name": True
     }
 
 class LoginRequest(BaseModel):
     username: str = Field(..., min_length=4) # Dấu ...: Bắt buộc phải điền đầy đủ thông tin
     password: str = Field(..., min_length=8)
 
+    @field_validator("username")
+    @classmethod
+    def normalize_username(cls, value: str) -> str:
+        return value.strip().lower()
+
 class TokenResponse(BaseModel): # Trả về 1 token để đăng nhập
     access_token: str
     token_type: str = "bearer"
+
+class CurrentUserResponse(BaseModel):
+    user_id: int = Field(validation_alias="id")
+    username: str
+    role: UserRole
+
+    model_config = {
+        "from_attributes": True,
+        "populate_by_name": True,
+    }
